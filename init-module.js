@@ -80,7 +80,7 @@ function readDeps (test) { return function (cb) {
 
 // name
 
-var name = package.name || basename
+var name = package.name || basename.toLowerCase()
 var spec = npa(name)
 var scope = config.get('scope')
 
@@ -128,23 +128,27 @@ exports.description = yes ? desc : prompt('description', desc || null)
 var main = package.main || null
 
 exports.main = function (cb) {
-  fs.readdir(dirname, function (err, f) {
+  var dir = path.join(dirname, 'src')
+  var srcDir = fs.existsSync(dir)
+  if (!srcDir) dir = dirname
+
+  fs.readdir(dir, function (err, f) {
     if (err) f = []
 
     f = f.filter(function (f) {
-      return f.match(/\.js$/)
+      return f.match(/\.(t|j)s$/)
     })
 
     if (f.indexOf('index.js') !== -1)
-      f = 'index.js'
+      f = srcDir ? 'src/index.js' : 'index.js'
     else if (f.indexOf('main.js') !== -1)
-      f = 'main.js'
+      f = srcDir ? 'src/main.js' : 'main.js'
     else if (f.indexOf(basename + '.js') !== -1)
-      f = basename + '.js'
+      f = srcDir ? ('src/' + basename + '.js') : basename + '.js'
     else
-      f = f[0]
+      f = srcDir ? ('src/' + f[0]) : f[0]
 
-    var index = f || 'index.js'
+    var index = config.get('init-main') || f || 'index.js'
     return cb(null, yes ? index : prompt('entry point', main || index))
   })
 }
@@ -173,7 +177,15 @@ if (!package.dependencies) {
 // devDependencies
 
 if (!package.devDependencies) {
-  exports.devDependencies = readDeps(true)
+  exports.devDependencies = readDeps(true);
+}
+
+if (!package.devDependencies) {
+  exports.devDependencies = readDeps(true);
+  var deps = config.get('devDependencies');
+  if (deps) {
+    package.devDependencies = JSON.parse(deps);
+  }
 }
 
 // scripts
@@ -190,11 +202,20 @@ exports.scripts = function (cb) {
 function setupScripts (deps, cb) {
   var scripts = package.scripts || {}
   var notest = 'echo "Error: no test specified" && exit 1'
-  var startCmd = scripts.start || config.get('init-scripts-start') || null
-  var testCmd = scripts.test || config.get('init-scripts-test') || notest
 
-  scripts.start = yes ? startCmd : prompt('start command', startCmd, spaceMeansBlank)
-  scripts.test = yes ? testCmd : prompt('test command', testCmd, spaceMeansBlank)
+  scripts.deploy = scripts.deploy || config.get('init-scripts-deploy') || null
+  scripts.start = scripts.start || config.get('init-scripts-start') || null
+  scripts.test = scripts.test || config.get('init-scripts-test') || notest
+  scripts.dev = scripts.dev || config.get('init-scripts-dev') || null
+  scripts.prebuild = scripts.prebuild || config.get('init-scripts-prebuild') || null
+  scripts.prestart = scripts.prestart || config.get('init-scripts-prestart') || null
+  scripts.pretest = scripts.pretest || config.get('init-scripts-pretest') || null
+  scripts.build = scripts.build || config.get('init-scripts-build') || null
+  scripts.deps = scripts.deps || config.get('init-scripts-deps') || null
+  scripts.format = scripts.format || config.get('init-scripts-format') || null
+  scripts.lint = scripts.lint || config.get('init-scripts-lint') || null
+  scripts.pretty = scripts.pretty || config.get('init-scripts-pretty') || null
+  scripts.clean = scripts.clean || config.get('init-scripts-clean') || null
 
   return cb(null, scripts)
 }
